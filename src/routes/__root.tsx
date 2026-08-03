@@ -77,16 +77,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Control de Pagos | Clases de Inglés" },
+      {
+        name: "description",
+        content:
+          "Panel simple para que un profesor de inglés controle los pagos de sus alumnos y vea quiénes llevan más días sin pagar.",
+      },
+      { property: "og:title", content: "Control de Pagos | Clases de Inglés" },
+      {
+        property: "og:description",
+        content: "Seguimiento visual de pagos de alumnos por grupo, con ranking de días sin pagar.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap",
+      },
       {
         rel: "stylesheet",
         href: appCss,
