@@ -32,7 +32,7 @@ export function diasSinPagar(e: Estudiante): number | null {
 
 export function ultimoPago(e: Estudiante): string | null {
   if (!e.pagos.length) return null;
-  return [...e.pagos].sort()[e.pagos.length - 1];
+  return [...e.pagos].sort().at(-1) ?? null;
 }
 
 export function proximoVencimiento(e: Estudiante): string | null {
@@ -44,8 +44,8 @@ export function proximoVencimiento(e: Estudiante): string | null {
 }
 
 export function formatoFecha(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("es-ES", {
+  const p = iso.split("-").map(Number);
+  return new Date(p[0] ?? 1970, (p[1] ?? 1) - 1, p[2] ?? 1).toLocaleDateString("es-ES", {
     day: "2-digit",
     month: "long",
     year: "numeric",
