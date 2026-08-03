@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { GraduationCap, LogOut, Settings2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { GraduationCap, LogOut, Moon, Settings2, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,8 @@ import { ListaEstudiantes } from "@/components/app/lista-estudiantes";
 import { GestionEstudiantes } from "@/components/app/gestion-estudiantes";
 import { GestionGrupos } from "@/components/app/gestion-grupos";
 import { CalendarioPagos } from "@/components/app/calendario-pagos";
-import type { Estudiante } from "@/lib/store";
+import { PagoModal } from "@/components/app/pago-modal";
+import type { Estudiante, NotaPago } from "@/lib/store";
 import { formatoFecha, hoyISO, uid, useDatos } from "@/lib/store";
 
 export const Route = createFileRoute("/")({
@@ -46,6 +47,20 @@ function Index() {
   const [historial, setHistorial] = useState<Estudiante | null>(null);
   const [ajustes, setAjustes] = useState(false);
   const [pagoManual, setPagoManual] = useState(hoyISO());
+  const [abrirPagoHistorial, setAbrirPagoHistorial] = useState(false);
+  const [modoOscuro, setModoOscuro] = useState(false);
+
+  useEffect(() => {
+    const temaGuardado = window.localStorage.getItem("pagos-ingles-theme");
+    const esOscuro = temaGuardado ? temaGuardado === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    setModoOscuro(esOscuro);
+    document.documentElement.classList.toggle("dark", esOscuro);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", modoOscuro);
+    window.localStorage.setItem("pagos-ingles-theme", modoOscuro ? "dark" : "light");
+  }, [modoOscuro]);
 
   if (!listo) return <div className="min-h-screen bg-background" />;
 
@@ -63,14 +78,22 @@ function Index() {
     );
   }
 
-  const registrarPago = (id: string, fecha = hoyISO()) =>
+  const registrarPago = (id: string, fecha = hoyISO(), nota?: NotaPago) =>
     actualizar((d) => ({
       ...d,
-      estudiantes: d.estudiantes.map((e) =>
-        e.id === id && !e.pagos.includes(fecha)
-          ? { ...e, pagos: [...e.pagos, fecha].sort() }
-          : e,
-      ),
+      estudiantes: d.estudiantes.map((e) => {
+        if (e.id !== id) return e;
+        const nuevoPagos = e.pagos.includes(fecha)
+          ? e.pagos
+          : [...e.pagos, fecha].sort();
+        const nuevasNotas = { ...(e.notasPagos ?? {}) };
+        if (nota) {
+          nuevasNotas[fecha] = nota;
+        } else {
+          delete nuevasNotas[fecha];
+        }
+        return { ...e, pagos: nuevoPagos, notasPagos: nuevasNotas };
+      }),
     }));
 
   const detalle = historial
@@ -91,6 +114,14 @@ function Index() {
             </div>
           </div>
           <div className="flex shrink-0 gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={modoOscuro ? "Activar modo claro" : "Activar modo oscuro"}
+              onClick={() => setModoOscuro((prev) => !prev)}
+            >
+              {modoOscuro ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
             <Button variant="ghost" size="icon" aria-label="Ajustes" onClick={() => setAjustes(true)}>
               <Settings2 className="h-4 w-4" />
             </Button>
@@ -102,7 +133,11 @@ function Index() {
       </header>
 
       <main className="mx-auto max-w-5xl space-y-6 px-4 py-6">
-        <Estadisticas datos={datos} />
+        <Estadisticas
+          datos={datos}
+          onPago={(id) => registrarPago(id)}
+          onHistorial={setHistorial}
+        />
 
         <Tabs defaultValue="panel" className="space-y-5">
           <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-4">
@@ -123,7 +158,7 @@ function Index() {
           <TabsContent value="panel">
             <ListaEstudiantes
               datos={datos}
-              onPago={(id) => registrarPago(id)}
+              onPago={(id, fecha, nota) => registrarPago(id, fecha, nota)}
               onHistorial={setHistorial}
             />
           </TabsContent>
@@ -132,6 +167,7 @@ function Index() {
             <GestionEstudiantes
               datos={datos}
               onHistorial={setHistorial}
+              onPago={(id, fecha, nota) => registrarPago(id, fecha, nota)}
               onGuardar={(id, nombre, grupoId) =>
                 actualizar((d) =>
                   id
@@ -207,31 +243,48 @@ function Index() {
               {detalle.pagos.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sin pagos registrados.</p>
               ) : (
-                <ul className="max-h-60 space-y-1 overflow-y-auto">
-                  {[...detalle.pagos].reverse().map((f) => (
-                    <li
-                      key={f}
-                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-surface px-3 py-2 text-sm"
-                    >
-                      <span className="truncate">{formatoFecha(f)}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          actualizar((d) => ({
-                            ...d,
-                            estudiantes: d.estudiantes.map((e) =>
-                              e.id === detalle.id
-                                ? { ...e, pagos: e.pagos.filter((p) => p !== f) }
-                                : e,
-                            ),
-                          }))
-                        }
+                <ul className="max-h-60 space-y-2 overflow-y-auto">
+                  {[...detalle.pagos].reverse().map((f) => {
+                    const nota = detalle.notasPagos?.[f];
+                    return (
+                      <li
+                        key={f}
+                        className="flex items-center justify-between gap-2 rounded-lg bg-secondary/50 px-3 py-2 text-sm"
                       >
-                        Quitar
-                      </Button>
-                    </li>
-                  ))}
+                        <div className="min-w-0">
+                          <p className="font-medium">{formatoFecha(f)}</p>
+                          {nota?.parcial && (
+                            <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                              Pago parcial
+                              {nota.deuda !== undefined ? ` (Debe ₡${nota.deuda})` : ""}
+                              {nota.proximoPago ? ` · Próx. pago: ${formatoFecha(nota.proximoPago)}` : ""}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            actualizar((d) => ({
+                              ...d,
+                              estudiantes: d.estudiantes.map((e) => {
+                                if (e.id !== detalle.id) return e;
+                                const nuevasNotas = { ...(e.notasPagos ?? {}) };
+                                delete nuevasNotas[f];
+                                return {
+                                  ...e,
+                                  pagos: e.pagos.filter((p) => p !== f),
+                                  notasPagos: nuevasNotas,
+                                };
+                              }),
+                            }))
+                          }
+                        >
+                          Quitar
+                        </Button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
               <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
@@ -243,7 +296,7 @@ function Index() {
                 />
                 <Button
                   className="h-11"
-                  onClick={() => pagoManual && registrarPago(detalle.id, pagoManual)}
+                  onClick={() => pagoManual && setAbrirPagoHistorial(true)}
                 >
                   Agregar pago
                 </Button>
@@ -252,6 +305,19 @@ function Index() {
           )}
         </DialogContent>
       </Dialog>
+
+      {detalle && (
+        <PagoModal
+          open={abrirPagoHistorial}
+          nombreEstudiante={detalle.nombre}
+          fechaPredefinida={pagoManual}
+          onClose={() => setAbrirPagoHistorial(false)}
+          onConfirmar={(fecha, nota) => {
+            registrarPago(detalle.id, fecha, nota);
+            setAbrirPagoHistorial(false);
+          }}
+        />
+      )}
 
       <Dialog open={ajustes} onOpenChange={setAjustes}>
         <DialogContent>

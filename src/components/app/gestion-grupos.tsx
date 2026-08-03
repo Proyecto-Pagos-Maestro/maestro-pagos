@@ -58,12 +58,12 @@ export function GestionGrupos({ datos, onCrear, onRenombrar, onEliminar, onAsign
         const miembros = datos.estudiantes.filter((e) => e.grupoId === g.id);
         const disponibles = datos.estudiantes.filter((e) => e.grupoId !== g.id);
         return (
-          <div key={g.id} className="rounded-xl border bg-card p-4 shadow-[var(--shadow-soft)]">
+          <div key={g.id} className="rounded-xl border border-border/70 bg-card/95 p-4 shadow-[var(--shadow-soft)]">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
               <Input
                 value={g.nombre}
                 onChange={(e) => onRenombrar(g.id, e.target.value)}
-                className="h-11 border-transparent bg-transparent text-base font-semibold shadow-none focus-visible:border-input"
+                className="h-11 border-transparent bg-transparent text-base font-semibold text-foreground shadow-none focus-visible:border-input"
               />
               <Button
                 variant="ghost"
@@ -85,9 +85,9 @@ export function GestionGrupos({ datos, onCrear, onRenombrar, onEliminar, onAsign
               {miembros.map((m) => (
                 <li
                   key={m.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-surface px-3 py-2"
+                  className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg bg-surface/90 px-3 py-2"
                 >
-                  <span className="truncate text-sm">{m.nombre}</span>
+                  <span className="truncate text-sm text-foreground">{m.nombre}</span>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -138,7 +138,7 @@ export function GestionGrupos({ datos, onCrear, onRenombrar, onEliminar, onAsign
       })}
 
       {sinGrupo.length > 0 && (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-foreground">
           Sin grupo: {sinGrupo.map((e) => e.nombre).join(", ")}
         </p>
       )}

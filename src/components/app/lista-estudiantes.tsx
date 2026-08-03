@@ -9,12 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Datos, Estudiante } from "@/lib/store";
-import { diasSinPagar, formatoFecha, ultimoPago } from "@/lib/store";
+import type { Datos, Estudiante, NotaPago } from "@/lib/store";
+import { diasHastaVencimiento, diasSinPagar, formatoFecha, ultimoPago } from "@/lib/store";
+import { PagoModal } from "@/components/app/pago-modal";
 
 type Props = {
   datos: Datos;
-  onPago: (id: string) => void;
+  onPago: (id: string, fecha: string, nota?: NotaPago) => void;
   onHistorial: (e: Estudiante) => void;
 };
 
@@ -22,6 +23,7 @@ export function ListaEstudiantes({ datos, onPago, onHistorial }: Props) {
   const [busqueda, setBusqueda] = useState("");
   const [grupo, setGrupo] = useState("todos");
   const [orden, setOrden] = useState("dias");
+  const [estudiantePago, setEstudiantePago] = useState<Estudiante | null>(null);
 
   const lista = useMemo(() => {
     return datos.estudiantes
@@ -81,49 +83,78 @@ export function ListaEstudiantes({ datos, onPago, onHistorial }: Props) {
       ) : (
         <ul className="space-y-2">
           {lista.map((e, i) => {
-            const d = diasSinPagar(e);
-            const atrasado = (d ?? 9999) > datos.umbral;
+            const ult = ultimoPago(e);
+            const nota = ult ? e.notasPagos?.[ult] : undefined;
+            const esParcial = Boolean(nota?.parcial);
+            const dSinPagar = diasSinPagar(e);
+            const dHastaVenc = diasHastaVencimiento(e);
+
+            const atrasado = (dSinPagar ?? 9999) > datos.umbral || (dHastaVenc !== null && dHastaVenc < 0);
+            const esWarning = !atrasado && (esParcial || (dHastaVenc !== null && dHastaVenc <= 5));
+
+            let subTextoCls = "text-emerald-600 dark:text-emerald-400";
+            if (atrasado) {
+              subTextoCls = "text-destructive font-medium";
+            } else if (esParcial) {
+              subTextoCls = "text-amber-600 dark:text-amber-400 font-bold";
+            } else if (esWarning) {
+              subTextoCls = "text-amber-600 dark:text-amber-400 font-medium";
+            }
+
+            let badgeCls = "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
+            if (atrasado) {
+              badgeCls = "bg-destructive/10 text-destructive";
+            } else if (esWarning || esParcial) {
+              badgeCls = "bg-amber-400/20 text-amber-700 dark:bg-amber-300 dark:text-amber-900 border border-amber-400/30";
+            }
+
+            const badgeTexto = dHastaVenc !== null
+              ? (dHastaVenc < 0 ? `${Math.abs(dHastaVenc)} d` : `${dHastaVenc} d`)
+              : (dSinPagar === null ? "—" : `${dSinPagar} d`);
+
+            let detPago = "Sin pagos";
+            if (ult) {
+              detPago = `Último pago: ${formatoFecha(ult)}`;
+              if (esParcial) {
+                detPago += ` (Parcial${nota?.deuda !== undefined ? ` · Debe ₡${nota.deuda}` : ""})`;
+              }
+            }
+
             return (
               <li
                 key={e.id}
-                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border bg-card p-3 shadow-[var(--shadow-soft)] sm:p-4"
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3.5 rounded-xl border border-border/70 bg-card/95 p-3.5 shadow-[var(--shadow-soft)] sm:p-4"
               >
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary text-sm font-semibold text-secondary-foreground">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-secondary text-base font-bold text-secondary-foreground">
                   {orden === "dias" ? i + 1 : e.nombre.charAt(0).toUpperCase()}
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate font-semibold">{e.nombre}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {nombreGrupo(e.grupoId)} ·{" "}
-                    {ultimoPago(e) ? `Último pago: ${formatoFecha(ultimoPago(e)!)}` : "Sin pagos"}
+                  <p className="truncate text-base sm:text-lg font-bold text-foreground dark:text-foreground">{e.nombre}</p>
+                  <p className={`text-xs sm:text-sm ${subTextoCls}`}>
+                    {nombreGrupo(e.grupoId)} · {detPago}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <span
-                    className={`rounded-lg px-2.5 py-1.5 text-right text-sm font-semibold ${
-                      atrasado
-                        ? "bg-destructive/10 text-destructive"
-                        : "bg-success/10 text-[var(--success)]"
-                    }`}
-                  >
-                    {d === null ? "—" : `${d} d`}
+                  <span className={`rounded-lg px-3 py-1.5 text-center text-sm sm:text-base font-bold ${badgeCls}`}>
+                    {badgeTexto}
                   </span>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="icon"
+                    className="h-10 w-10 shrink-0"
                     aria-label={`Ver historial de ${e.nombre}`}
                     onClick={() => onHistorial(e)}
                   >
-                    <History className="h-4 w-4" />
+                    <History className="h-5 w-5" />
                   </Button>
                   <Button
-                    size="sm"
-                    className="h-9"
+                    size="default"
+                    className="h-10 px-4 text-sm font-semibold"
                     aria-label={`Registrar pago de ${e.nombre}`}
-                    onClick={() => onPago(e.id)}
+                    onClick={() => setEstudiantePago(e)}
                   >
-                    <CheckCircle2 className="h-4 w-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Pagó</span>
+                    <CheckCircle2 className="h-5 w-5 mr-1.5" />
+                    <span>Pagó</span>
                   </Button>
                 </div>
               </li>
@@ -131,6 +162,16 @@ export function ListaEstudiantes({ datos, onPago, onHistorial }: Props) {
           })}
         </ul>
       )}
+
+      <PagoModal
+        open={estudiantePago !== null}
+        nombreEstudiante={estudiantePago?.nombre ?? ""}
+        onClose={() => setEstudiantePago(null)}
+        onConfirmar={(fecha, nota) => {
+          if (estudiantePago) onPago(estudiantePago.id, fecha, nota);
+          setEstudiantePago(null);
+        }}
+      />
     </section>
   );
 }
