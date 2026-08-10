@@ -1,14 +1,21 @@
 import { useState } from "react";
-import { Plus, Trash2, UserMinus, UserPlus } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Trash2, UserMinus, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import type { Datos } from "@/lib/store";
 
 type Props = {
@@ -22,6 +29,7 @@ type Props = {
 export function GestionGrupos({ datos, onCrear, onRenombrar, onEliminar, onAsignar }: Props) {
   const [nuevo, setNuevo] = useState("");
   const [agregar, setAgregar] = useState<Record<string, string>>({});
+  const [abierto, setAbierto] = useState<Record<string, boolean>>({});
 
   const sinGrupo = datos.estudiantes.filter((e) => !e.grupoId);
 
@@ -57,6 +65,10 @@ export function GestionGrupos({ datos, onCrear, onRenombrar, onEliminar, onAsign
       {datos.grupos.map((g) => {
         const miembros = datos.estudiantes.filter((e) => e.grupoId === g.id);
         const disponibles = datos.estudiantes.filter((e) => e.grupoId !== g.id);
+        const seleccionadoId = agregar[g.id] ?? "";
+        const seleccionadoNombre =
+          datos.estudiantes.find((e) => e.id === seleccionadoId)?.nombre ?? "";
+
         return (
           <div key={g.id} className="rounded-xl border border-border/70 bg-card/95 p-4 shadow-[var(--shadow-soft)]">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
@@ -103,21 +115,57 @@ export function GestionGrupos({ datos, onCrear, onRenombrar, onEliminar, onAsign
 
             {disponibles.length > 0 && (
               <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-                <Select
-                  value={agregar[g.id] ?? ""}
-                  onValueChange={(v) => setAgregar((p) => ({ ...p, [g.id]: v }))}
+                <Popover
+                  open={abierto[g.id] ?? false}
+                  onOpenChange={(open) =>
+                    setAbierto((p) => ({ ...p, [g.id]: open }))
+                  }
                 >
-                  <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Agregar estudiante..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {disponibles.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>
-                        {e.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={abierto[g.id] ?? false}
+                      className="h-11 w-full justify-between font-normal"
+                    >
+                      <span className="truncate">
+                        {seleccionadoNombre || "Buscar estudiante..."}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Escribí el nombre..." />
+                      <CommandList>
+                        <CommandEmpty>No se encontró ningún estudiante.</CommandEmpty>
+                        <CommandGroup>
+                          {disponibles.map((e) => (
+                            <CommandItem
+                              key={e.id}
+                              value={e.nombre}
+                              onSelect={() => {
+                                setAgregar((p) => ({
+                                  ...p,
+                                  [g.id]: e.id === seleccionadoId ? "" : e.id,
+                                }));
+                                setAbierto((p) => ({ ...p, [g.id]: false }));
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  seleccionadoId === e.id ? "opacity-100" : "opacity-0",
+                                )}
+                              />
+                              {e.nombre}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
                 <Button
                   variant="secondary"
                   className="h-11"
