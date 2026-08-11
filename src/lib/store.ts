@@ -25,7 +25,13 @@ export type Datos = {
 
 const KEY = "pagos-ingles-v2";
 
-export const hoyISO = () => new Date().toISOString().slice(0, 10);
+export const hoyISO = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
 
 export function uid() {
   return Math.random().toString(36).slice(2, 10);
@@ -49,10 +55,56 @@ export function proximoVencimiento(e: Estudiante): string | null {
   // Si hay una fecha manual de próximo pago, usarla
   const notaManual = e.notasPagos?.[u]?.proximoPago;
   if (notaManual) return notaManual;
-  // Default: último pago + 1 mes
-  const d = new Date(u);
-  d.setMonth(d.getMonth() + 1);
-  return d.toISOString().slice(0, 10);
+
+  // Determinar el día de pago habitual del estudiante.
+  // Si tiene 2+ pagos, usar el día del penúltimo pago para mantener el ciclo.
+  // Así, si un alumno paga los 10 y se atrasa al 15, el próximo vencimiento
+  // sigue siendo el 10 del mes siguiente (no el 15).
+  const pagosOrdenados = [...e.pagos].sort();
+  let diaCiclo: number;
+
+  if (pagosOrdenados.length >= 2) {
+    // Buscar el día más frecuente entre los pagos anteriores para detectar el patrón
+    const dias = pagosOrdenados.map((f) => {
+      const partes = f.split("-").map(Number);
+      return partes[2]!;
+    });
+    // Contar frecuencia de cada día
+    const freq = new Map<number, number>();
+    for (const d of dias) {
+      freq.set(d, (freq.get(d) ?? 0) + 1);
+    }
+    // El día más frecuente es el día de ciclo habitual
+    let maxFreq = 0;
+    diaCiclo = dias[0]!;
+    for (const [dia, count] of freq) {
+      if (count > maxFreq) {
+        maxFreq = count;
+        diaCiclo = dia;
+      }
+    }
+  } else {
+    // Solo tiene 1 pago, usar ese día como referencia
+    const partes = u.split("-").map(Number);
+    diaCiclo = partes[2]!;
+  }
+
+  // Calcular el próximo vencimiento: el próximo "diaCiclo" a partir de hoy
+  const partesUlt = u.split("-").map(Number);
+  const fechaUlt = new Date(partesUlt[0]!, partesUlt[1]! - 1, partesUlt[2]!);
+  // Empezar desde el mes del último pago + 1
+  let anio = fechaUlt.getFullYear();
+  let mes = fechaUlt.getMonth() + 1; // siguiente mes
+
+  // Ajustar si el día de ciclo no existe en el mes (ej: 31 en febrero)
+  const ultimoDiaDelMes = new Date(anio, mes + 1, 0).getDate();
+  const diaReal = Math.min(diaCiclo, ultimoDiaDelMes);
+  const proxima = new Date(anio, mes, diaReal);
+
+  const py = proxima.getFullYear();
+  const pm = String(proxima.getMonth() + 1).padStart(2, "0");
+  const pd = String(proxima.getDate()).padStart(2, "0");
+  return `${py}-${pm}-${pd}`;
 }
 
 export function diasHastaVencimiento(e: Estudiante): number | null {
@@ -85,13 +137,19 @@ const inicial: Datos = {
 function hace(dias: number) {
   const d = new Date();
   d.setDate(d.getDate() - dias);
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function futuro(dias: number) {
   const d = new Date();
   d.setDate(d.getDate() + dias);
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function demo(): Datos {

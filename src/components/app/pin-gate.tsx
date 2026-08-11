@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,9 +39,11 @@ export function PinGate({ usuario, pin, onConfigurar, onEntrar }: Props) {
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm rounded-2xl border bg-card p-8 shadow-[var(--shadow-card)]">
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-primary text-primary-foreground">
-            <Lock className="h-6 w-6" />
-          </div>
+          <img
+            src="/educare-logo.png"
+            alt="Educare Logo"
+            className="mb-4 h-16 w-16 rounded-2xl object-cover shadow-sm"
+          />
           <h1 className="text-2xl font-semibold">Control de Pagos</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {configurado

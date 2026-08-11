@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Datos, Estudiante, NotaPago } from "@/lib/store";
-import { diasHastaVencimiento, diasSinPagar, formatoFecha, ultimoPago } from "@/lib/store";
+import { diasHastaVencimiento, diasSinPagar, formatoFecha, ultimoPago, proximoVencimiento } from "@/lib/store";
 import { PagoModal } from "@/components/app/pago-modal";
 
 type Props = {
@@ -166,6 +166,7 @@ export function ListaEstudiantes({ datos, onPago, onHistorial }: Props) {
       <PagoModal
         open={estudiantePago !== null}
         nombreEstudiante={estudiantePago?.nombre ?? ""}
+        fechaPredefinida={estudiantePago ? (proximoVencimiento(estudiantePago) ?? undefined) : undefined}
         onClose={() => setEstudiantePago(null)}
         onConfirmar={(fecha, nota) => {
           if (estudiantePago) onPago(estudiantePago.id, fecha, nota);

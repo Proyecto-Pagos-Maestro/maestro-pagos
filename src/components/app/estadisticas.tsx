@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AlertTriangle, TrendingUp, Users, History, CheckCircle2 } from "lucide-react";
 import type { Datos, Estudiante, NotaPago } from "@/lib/store";
-import { diasSinPagar, formatoFecha, ultimoPago } from "@/lib/store";
+import { diasSinPagar, formatoFecha, ultimoPago, proximoVencimiento } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -173,6 +173,7 @@ export function Estadisticas({ datos, onPago, onHistorial }: Props) {
       <PagoModal
         open={estudiantePago !== null}
         nombreEstudiante={estudiantePago?.nombre ?? ""}
+        fechaPredefinida={estudiantePago ? (proximoVencimiento(estudiantePago) ?? undefined) : undefined}
         onClose={() => setEstudiantePago(null)}
         onConfirmar={(fecha, nota) => {
           if (estudiantePago && onPago) onPago(estudiantePago.id, fecha, nota);

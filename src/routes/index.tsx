@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { GraduationCap, LogOut, Moon, Settings2, Sun } from "lucide-react";
+import { LogOut, Moon, Settings2, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -105,9 +105,11 @@ function Index() {
       <header className="border-b bg-card">
         <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
-              <GraduationCap className="h-5 w-5" />
-            </span>
+            <img
+              src="/educare-logo.png"
+              alt="Educare Logo"
+              className="h-10 w-10 shrink-0 rounded-xl object-cover"
+            />
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold">Control de Pagos</h1>
               <p className="truncate text-xs text-muted-foreground">Hola, {datos.usuario}</p>
