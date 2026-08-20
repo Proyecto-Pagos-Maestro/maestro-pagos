@@ -31,11 +31,27 @@ export function GestionGrupos({ datos, onCrear, onRenombrar, onEliminar, onAsign
   const [agregar, setAgregar] = useState<Record<string, string>>({});
   const [abierto, setAbierto] = useState<Record<string, boolean>>({});
 
-  const sinGrupo = datos.estudiantes.filter((e) => !e.grupoId);
+  const gruposList = datos?.grupos || [];
+  const estudiantesList = datos?.estudiantes || [];
+  const sinGrupo = estudiantesList.filter((e) => !e.grupoId);
+
+  const handleCrear = () => {
+    const val = nuevo.trim();
+    if (val) {
+      onCrear(val);
+      setNuevo("");
+    }
+  };
 
   return (
     <section className="space-y-4">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleCrear();
+        }}
+        className="grid grid-cols-[minmax(0,1fr)_auto] gap-2"
+      >
         <Input
           value={nuevo}
           onChange={(e) => setNuevo(e.target.value)}
@@ -43,31 +59,27 @@ export function GestionGrupos({ datos, onCrear, onRenombrar, onEliminar, onAsign
           className="h-11"
         />
         <Button
+          type="button"
+          onClick={handleCrear}
           size="lg"
           className="h-11"
-          onClick={() => {
-            if (nuevo.trim()) {
-              onCrear(nuevo.trim());
-              setNuevo("");
-            }
-          }}
         >
           <Plus className="mr-1 h-4 w-4" /> Crear
         </Button>
-      </div>
+      </form>
 
-      {datos.grupos.length === 0 && (
+      {gruposList.length === 0 && (
         <p className="rounded-xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
           Todavía no hay grupos creados.
         </p>
       )}
 
-      {datos.grupos.map((g) => {
-        const miembros = datos.estudiantes.filter((e) => e.grupoId === g.id);
-        const disponibles = datos.estudiantes.filter((e) => e.grupoId !== g.id);
+      {gruposList.map((g) => {
+        const miembros = estudiantesList.filter((e) => e.grupoId === g.id);
+        const disponibles = estudiantesList.filter((e) => e.grupoId !== g.id);
         const seleccionadoId = agregar[g.id] ?? "";
         const seleccionadoNombre =
-          datos.estudiantes.find((e) => e.id === seleccionadoId)?.nombre ?? "";
+          estudiantesList.find((e) => e.id === seleccionadoId)?.nombre ?? "";
 
         return (
           <div key={g.id} className="rounded-xl border border-border/70 bg-card/95 p-4 shadow-[var(--shadow-soft)]">

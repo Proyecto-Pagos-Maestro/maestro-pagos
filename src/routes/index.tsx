@@ -218,19 +218,22 @@ function Index() {
             <GestionGrupos
               datos={datos}
               onCrear={(nombre) =>
-                actualizar((d) => ({ ...d, grupos: [...d.grupos, { id: uid(), nombre }] }))
+                actualizar((d) => ({
+                  ...d,
+                  grupos: [...(d.grupos || []), { id: uid(), nombre }],
+                }))
               }
               onRenombrar={(id, nombre) =>
                 actualizar((d) => ({
                   ...d,
-                  grupos: d.grupos.map((g) => (g.id === id ? { ...g, nombre } : g)),
+                  grupos: (d.grupos || []).map((g) => (g.id === id ? { ...g, nombre } : g)),
                 }))
               }
               onEliminar={(id) =>
                 actualizar((d) => ({
                   ...d,
-                  grupos: d.grupos.filter((g) => g.id !== id),
-                  estudiantes: d.estudiantes.map((e) =>
+                  grupos: (d.grupos || []).filter((g) => g.id !== id),
+                  estudiantes: (d.estudiantes || []).map((e) =>
                     e.grupoId === id ? { ...e, grupoId: null } : e,
                   ),
                 }))
@@ -238,7 +241,7 @@ function Index() {
               onAsignar={(estudianteId, grupoId) =>
                 actualizar((d) => ({
                   ...d,
-                  estudiantes: d.estudiantes.map((e) =>
+                  estudiantes: (d.estudiantes || []).map((e) =>
                     e.id === estudianteId ? { ...e, grupoId } : e,
                   ),
                 }))

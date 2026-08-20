@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+export { activarNotificaciones } from "./push";
 
 export type Grupo = { id: string; nombre: string };
 
@@ -237,38 +238,38 @@ function demo(): Datos {
   return { ...inicial, grupos: g, estudiantes: est };
 }
 
-function leer(): Datos {
-  if (typeof window === "undefined") return inicial;
-  try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return demo();
-    const parsed = JSON.parse(raw) as Partial<Datos>;
-    if (!parsed.estudiantes || !Array.isArray(parsed.estudiantes)) return demo();
-    return { ...inicial, ...parsed };
-  } catch {
-    return demo();
-  }
-}
-
 export function useDatos() {
   const [datos, setDatos] = useState<Datos>(inicial);
   const [listo, setListo] = useState(false);
+  const datosRef = useRef(datos);
 
   useEffect(() => {
-    setDatos(leer());
-    setListo(true);
+    datosRef.current = datos;
+  }, [datos]);
+
+  useEffect(() => {
+    fetch("http://localhost:3001/api/datos")
+      .then((res) => res.json())
+      .then((data: Datos) => {
+        setDatos({ ...inicial, ...data });
+        setListo(true);
+      })
+      .catch(() => {
+        // si el backend no responde, cae a datos demo para no romper la UI
+        setDatos(demo());
+        setListo(true);
+      });
   }, []);
 
   const actualizar = useCallback((fn: (d: Datos) => Datos) => {
-    setDatos((prev) => {
-      const next = fn(prev);
-      try {
-        window.localStorage.setItem(KEY, JSON.stringify(next));
-      } catch {
-        /* almacenamiento no disponible */
-      }
-      return next;
-    });
+    const next = fn(datosRef.current);
+    datosRef.current = next;
+    setDatos(next);
+    fetch("http://localhost:3001/api/datos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next),
+    }).catch((err) => console.error("Error guardando en el servidor:", err));
   }, []);
 
   return { datos, actualizar, listo };

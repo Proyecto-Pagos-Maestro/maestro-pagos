@@ -6,11 +6,13 @@ const { Pool } = pg;
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
 });
 
 export async function initDb() {
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     await client.query(`
       CREATE TABLE IF NOT EXISTS configuracion (
         id VARCHAR(50) PRIMARY KEY,
@@ -47,7 +49,10 @@ export async function initDb() {
       ON CONFLICT (id) DO NOTHING;
     `);
     console.log("✅ Base de datos sincronizada");
+  } catch (error) {
+    console.error("❌ Error conectando/sincronizando la base de datos:", error.message);
+    throw error;
   } finally {
-    client.release();
+    if (client) client.release();
   }
 }

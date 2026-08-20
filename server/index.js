@@ -64,7 +64,14 @@ app.get('/api/datos', async (req, res) => {
 
 // Guardar/sincronizar datos completos (simplificado para que empate con localStorage)
 app.post('/api/datos', async (req, res) => {
-  const { grupos, estudiantes, umbral, pin, usuario, diasArchivoInactivos } = req.body;
+  const {
+    grupos = [],
+    estudiantes = [],
+    umbral = 30,
+    pin = null,
+    usuario = 'Profesor',
+    diasArchivoInactivos = 545
+  } = req.body || {};
   const client = await pool.connect();
   
   try {
@@ -76,8 +83,14 @@ app.post('/api/datos', async (req, res) => {
       [usuario, pin, umbral, diasArchivoInactivos]
     );
 
-    // Actualizar grupos (simplificado: borramos y reinsertamos o hacemos UPSERT)
-    // Para SQLite/Postgres lo ideal es UPSERT. Usamos INSERT ON CONFLICT
+    // Actualizar grupos (UPSERT)
+    const grupoIds = grupos.map(g => g.id);
+    if (grupoIds.length > 0) {
+      await client.query(`DELETE FROM grupos WHERE NOT (id = ANY($1))`, [grupoIds]);
+    } else {
+      await client.query(`DELETE FROM grupos`);
+    }
+
     for (const g of grupos) {
       await client.query(
         `INSERT INTO grupos (id, nombre) VALUES ($1, $2)
@@ -85,7 +98,6 @@ app.post('/api/datos', async (req, res) => {
         [g.id, g.nombre]
       );
     }
-    // Borrar grupos que ya no existen (requiere lógica extra, lo omitimos para mantenerlo simple ahora)
 
     // Actualizar estudiantes
     for (const e of estudiantes) {
@@ -99,7 +111,7 @@ app.post('/api/datos', async (req, res) => {
            notas_pagos = EXCLUDED.notas_pagos,
            activo = EXCLUDED.activo,
            fecha_inactivacion = EXCLUDED.fecha_inactivacion`,
-        [e.id, e.nombre, e.grupoId, JSON.stringify(e.pagos), JSON.stringify(e.notasPagos || {}), e.activo !== false, e.fechaInactivacion]
+        [e.id, e.nombre, e.grupoId || null, JSON.stringify(e.pagos || []), JSON.stringify(e.notasPagos || {}), e.activo !== false, e.fechaInactivacion || null]
       );
     }
 
@@ -107,7 +119,7 @@ app.post('/api/datos', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error(error);
+    console.error("Error guardando datos en servidor:", error);
     res.status(500).json({ error: 'Error guardando datos' });
   } finally {
     client.release();
@@ -151,8 +163,48 @@ app.post('/api/test-notification', async (req, res) => {
 
 cron.schedule('0 9 * * *', async () => {
   console.log('⏰ Ejecutando revisión de pagos vencidos...');
-  // Aquí irá la lógica para revisar días sin pagar 0, 1, y 2
-  // En un paso posterior implementaremos esto con tu lógica frontend.
+  try {
+    const estudiantesRes = await pool.query(
+      "SELECT nombre, pagos FROM estudiantes WHERE activo = true"
+    );
+    const subsRes = await pool.query("SELECT subscription FROM push_subscriptions");
+
+    if (subsRes.rows.length === 0) {
+      console.log('No hay suscripciones registradas, se omite el envío.');
+      return;
+    }
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    for (const est of estudiantesRes.rows) {
+      const pagos = est.pagos || [];
+      if (pagos.length === 0) continue;
+
+      const ultimoPago = [...pagos].sort().at(-1);
+      const fechaUltimo = new Date(ultimoPago);
+      fechaUltimo.setHours(0, 0, 0, 0);
+
+      const diasSinPagar = Math.round((hoy - fechaUltimo) / 86400000);
+
+      if ([0, 1, 2].includes(diasSinPagar)) {
+        const payload = JSON.stringify({
+          title: 'Recordatorio de pago',
+          body: `${est.nombre} lleva ${diasSinPagar} día(s) sin pagar.`,
+        });
+
+        for (const row of subsRes.rows) {
+          await webpush.sendNotification(row.subscription, payload).catch((err) => {
+            console.error('Error enviando notificación:', err);
+          });
+        }
+      }
+    }
+
+    console.log('✅ Revisión de pagos completada.');
+  } catch (error) {
+    console.error('Error en cron de notificaciones:', error);
+  }
 });
 
 // -----------------------------------------------------
