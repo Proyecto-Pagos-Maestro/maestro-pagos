@@ -13,11 +13,11 @@ import type { NotaPago } from "@/lib/store";
 import { hoyISO } from "@/lib/store";
 
 type Props = {
-  nombreEstudiante: string;
-  fechaPredefinida?: string;
   open: boolean;
+  nombreEstudiante: string;
+  fechaPredefinida?: string | undefined;
   onClose: () => void;
-  onConfirmar: (fecha: string, nota: NotaPago) => void;
+  onConfirmar: (fecha: string, nota?: NotaPago) => void;
 };
 
 type Paso = "tipo" | "parcial";
@@ -47,11 +47,11 @@ export function PagoModal({ nombreEstudiante, fechaPredefinida, open, onClose, o
   }
 
   function confirmarParcial() {
-    const nota: NotaPago = {
-      parcial: true,
-      deuda: deuda ? Number(deuda) : undefined,
-      proximoPago: proximoPago || undefined,
-    };
+      const nota: NotaPago = {
+        parcial: true,
+        ...(deuda ? { deuda: Number(deuda) } : {}),
+        ...(proximoPago ? { proximoPago } : {}),
+      };
     onConfirmar(fechaPago, nota);
     reset();
     onClose();

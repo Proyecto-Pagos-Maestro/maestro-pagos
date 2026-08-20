@@ -14,6 +14,8 @@ export type Estudiante = {
   grupoId: string | null;
   pagos: string[]; // fechas ISO yyyy-mm-dd, ordenadas asc
   notasPagos?: Record<string, NotaPago>; // key = fecha ISO del pago
+  activo?: boolean;             // undefined o true = activo, false = inactivo
+  fechaInactivacion?: string;   // fecha ISO en que se archivó
 };
 export type Datos = {
   grupos: Grupo[];
@@ -21,6 +23,7 @@ export type Datos = {
   umbral: number;
   pin: string | null;
   usuario: string;
+  diasArchivoInactivos: number; // días que se conservan inactivos antes de auto-purga
 };
 
 const KEY = "pagos-ingles-v2";
@@ -132,6 +135,7 @@ const inicial: Datos = {
   umbral: 30,
   pin: null,
   usuario: "Profesor",
+  diasArchivoInactivos: 545, // 1 año y medio por defecto
 };
 
 function hace(dias: number) {

@@ -18,6 +18,7 @@ import { ListaEstudiantes } from "@/components/app/lista-estudiantes";
 import { GestionEstudiantes } from "@/components/app/gestion-estudiantes";
 import { GestionGrupos } from "@/components/app/gestion-grupos";
 import { CalendarioPagos } from "@/components/app/calendario-pagos";
+import { EstudiantesInactivos } from "@/components/app/estudiantes-inactivos";
 import { PagoModal } from "@/components/app/pago-modal";
 import type { Estudiante, NotaPago } from "@/lib/store";
 import { formatoFecha, hoyISO, uid, useDatos } from "@/lib/store";
@@ -100,6 +101,9 @@ function Index() {
     ? (datos.estudiantes.find((e) => e.id === historial.id) ?? null)
     : null;
 
+  // Contador de inactivos para el badge en la pestaña
+  const cantInactivos = datos.estudiantes.filter((e) => e.activo === false).length;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -142,7 +146,7 @@ function Index() {
         />
 
         <Tabs defaultValue="panel" className="space-y-5">
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-4">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-5">
             <TabsTrigger value="panel" className="h-10">
               Panel
             </TabsTrigger>
@@ -154,6 +158,14 @@ function Index() {
             </TabsTrigger>
             <TabsTrigger value="calendario" className="h-10">
               Calendario
+            </TabsTrigger>
+            <TabsTrigger value="inactivos" className="h-10 relative">
+              Inactivos
+              {cantInactivos > 0 && (
+                <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive/15 px-1 text-[10px] font-bold text-destructive">
+                  {cantInactivos}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -191,7 +203,12 @@ function Index() {
               onEliminar={(id) =>
                 actualizar((d) => ({
                   ...d,
-                  estudiantes: d.estudiantes.filter((e) => e.id !== id),
+                  // Soft delete: marcar como inactivo en lugar de borrar
+                  estudiantes: d.estudiantes.map((e) =>
+                    e.id === id
+                      ? { ...e, activo: false, fechaInactivacion: hoyISO() }
+                      : e,
+                  ),
                 }))
               }
             />
@@ -231,6 +248,28 @@ function Index() {
 
           <TabsContent value="calendario">
             <CalendarioPagos datos={datos} />
+          </TabsContent>
+
+          <TabsContent value="inactivos">
+            <EstudiantesInactivos
+              datos={datos}
+              onReactivar={(id) =>
+                actualizar((d) => ({
+                  ...d,
+                  estudiantes: d.estudiantes.map((e) => {
+                    if (e.id !== id) return e;
+                    const { fechaInactivacion, ...rest } = e;
+                    return { ...rest, activo: true };
+                  }),
+                }))
+              }
+              onEliminarDefinitivo={(id) =>
+                actualizar((d) => ({
+                  ...d,
+                  estudiantes: d.estudiantes.filter((e) => e.id !== id),
+                }))
+              }
+            />
           </TabsContent>
         </Tabs>
       </main>
@@ -326,19 +365,35 @@ function Index() {
           <DialogHeader>
             <DialogTitle>Ajustes</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="umbral">Días para considerar atrasado</Label>
-            <Input
-              id="umbral"
-              type="number"
-              min={1}
-              value={datos.umbral}
-              onChange={(e) =>
-                actualizar((d) => ({ ...d, umbral: Math.max(1, Number(e.target.value) || 1) }))
-              }
-              className="h-11"
-            />
-            <p className="text-xs text-muted-foreground">Sugerido: 30 días (ciclo mensual).</p>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="umbral">Días para considerar atrasado</Label>
+              <Input
+                id="umbral"
+                type="number"
+                min={1}
+                value={datos.umbral}
+                onChange={(e) =>
+                  actualizar((d) => ({ ...d, umbral: Math.max(1, Number(e.target.value) || 1) }))
+                }
+                className="h-11"
+              />
+              <p className="text-xs text-muted-foreground">Sugerido: 30 días (ciclo mensual).</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="diasInactivos">Días de archivo para inactivos</Label>
+              <Input
+                id="diasInactivos"
+                type="number"
+                min={7}
+                value={datos.diasArchivoInactivos}
+                onChange={(e) =>
+                  actualizar((d) => ({ ...d, diasArchivoInactivos: Math.max(7, Number(e.target.value) || 545) }))
+                }
+                className="h-11"
+              />
+              <p className="text-xs text-muted-foreground">Después de este tiempo, los inactivos se eliminan permanentemente. Default: 545 días (1.5 años).</p>
+            </div>
           </div>
           <DialogFooter>
             <Button onClick={() => setAjustes(false)}>Listo</Button>

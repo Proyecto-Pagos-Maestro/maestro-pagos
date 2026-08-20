@@ -21,8 +21,9 @@ export function Estadisticas({ datos, onPago, onHistorial }: Props) {
   const [verAtrasados, setVerAtrasados] = useState(false);
   const [estudiantePago, setEstudiantePago] = useState<Estudiante | null>(null);
 
-  const total = datos.estudiantes.length;
+  const total = datos.estudiantes.filter((e) => e.activo !== false).length;
   const estudiantesAtrasados = datos.estudiantes
+    .filter((e) => e.activo !== false)
     .filter((e) => (diasSinPagar(e) ?? 999) > datos.umbral)
     .sort((a, b) => (diasSinPagar(b) ?? 999) - (diasSinPagar(a) ?? 999));
 

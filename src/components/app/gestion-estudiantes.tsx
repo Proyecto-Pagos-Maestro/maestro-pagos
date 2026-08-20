@@ -54,6 +54,7 @@ export function GestionEstudiantes({ datos, onGuardar, onEliminar, onHistorial, 
     datos.grupos.find((g) => g.id === id)?.nombre ?? "Sin grupo";
 
   const estudiantesFiltrados = datos.estudiantes
+    .filter((e) => e.activo !== false) // excluir inactivos
     .filter((e) => e.nombre.toLowerCase().includes(busqueda.trim().toLowerCase()))
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
 

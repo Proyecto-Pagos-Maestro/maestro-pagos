@@ -27,6 +27,7 @@ export function ListaEstudiantes({ datos, onPago, onHistorial }: Props) {
 
   const lista = useMemo(() => {
     return datos.estudiantes
+      .filter((e) => e.activo !== false) // excluir inactivos
       .filter((e) => e.nombre.toLowerCase().includes(busqueda.trim().toLowerCase()))
       .filter((e) => grupo === "todos" || (grupo === "sin" ? !e.grupoId : e.grupoId === grupo))
       .sort((a, b) =>

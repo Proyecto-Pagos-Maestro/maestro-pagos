@@ -2,15 +2,7 @@ import { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Datos, Estudiante } from "@/lib/store";
-import { diasSinPagar, formatoFecha, proximoVencimiento, ultimoPago } from "@/lib/store";
-
-// ──────────────────────────────────────────────────────
-// Helpers de fecha
-// ──────────────────────────────────────────────────────
-
-function hoyISO() {
-  return new Date().toISOString().slice(0, 10);
-}
+import { diasSinPagar, formatoFecha, hoyISO, proximoVencimiento, ultimoPago } from "@/lib/store";
 
 // ──────────────────────────────────────────────────────
 // Tipos internos
@@ -78,6 +70,7 @@ export function CalendarioPagos({ datos }: { datos: Datos }) {
     };
 
     for (const est of datos.estudiantes) {
+      if (est.activo === false) continue; // excluir inactivos
       // Cada pago registrado
       for (const pago of est.pagos) {
         const nota = est.notasPagos?.[pago];
@@ -91,8 +84,8 @@ export function CalendarioPagos({ datos }: { datos: Datos }) {
           tipo: "pago",
           fecha: pago,
           esParcial,
-          deuda: nota?.deuda,
-          proximoPagoNota: nota?.proximoPago,
+          ...(nota?.deuda !== undefined ? { deuda: nota.deuda } : {}),
+          ...(nota?.proximoPago !== undefined ? { proximoPagoNota: nota.proximoPago } : {}),
           vencimiento: venc,
         });
       }
