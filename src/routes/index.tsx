@@ -1,3 +1,16 @@
+/**
+ * ARCHIVO: src/routes/index.tsx
+ * -------------------------------------------------------------
+ * PROPÓSITO:
+ * Es el controlador principal (Pantalla Base) de toda la aplicación.
+ * Gestiona la navegación por pestañas y coordina a todos los demás componentes.
+ * 
+ * LÓGICA PRINCIPAL:
+ * - Renderiza el "PinGate" si el usuario no ha puesto la contraseña.
+ * - Centraliza las funciones críticas que modifican el estado (como registrarPago).
+ * - Maneja las pestañas principales (Lista Estudiantes, Gestión, Grupos, Calendario, Inactivos).
+ * - Permite configurar notificaciones push (suscribir al navegador al Service Worker).
+ */
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LogOut, Moon, Settings2, Sun } from "lucide-react";
@@ -21,7 +34,7 @@ import { CalendarioPagos } from "@/components/app/calendario-pagos";
 import { EstudiantesInactivos } from "@/components/app/estudiantes-inactivos";
 import { PagoModal } from "@/components/app/pago-modal";
 import type { Estudiante, NotaPago } from "@/lib/store";
-import { formatoFecha, hoyISO, uid, useDatos } from "@/lib/store";
+import { API_URL, formatoFecha, hoyISO, uid, useDatos } from "@/lib/store";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -62,7 +75,7 @@ function Index() {
       }
       await navigator.serviceWorker.register('/sw.js');
       const reg = await navigator.serviceWorker.ready;
-      const res = await fetch(`http://${window.location.hostname}:3001/api/vapid-public-key`);
+      const res = await fetch(`${API_URL}/api/vapid-public-key`);
       const vapidPublicKey = await res.text();
       
       function urlBase64ToUint8Array(base64String: string) {
@@ -81,7 +94,7 @@ function Index() {
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
       });
 
-      await fetch(`http://${window.location.hostname}:3001/api/subscribe`, {
+      await fetch(`${API_URL}/api/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(subscription),
@@ -402,6 +415,7 @@ function Index() {
         <PagoModal
           open={abrirPagoHistorial}
           nombreEstudiante={detalle.nombre}
+          telefono={detalle.telefono}
           fechaPredefinida={pagoManual}
           onClose={() => setAbrirPagoHistorial(false)}
           onConfirmar={(fecha, nota) => {
@@ -437,9 +451,10 @@ function Index() {
                 id="diasInactivos"
                 type="number"
                 min={7}
+                max={545}
                 value={datos.diasArchivoInactivos}
                 onChange={(e) =>
-                  actualizar((d) => ({ ...d, diasArchivoInactivos: Math.max(7, Number(e.target.value) || 545) }))
+                  actualizar((d) => ({ ...d, diasArchivoInactivos: Math.min(545, Math.max(7, Number(e.target.value) || 545)) }))
                 }
                 className="h-11"
               />

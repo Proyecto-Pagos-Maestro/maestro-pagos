@@ -1,3 +1,17 @@
+/**
+ * ARCHIVO: server/db.js
+ * -------------------------------------------------------------
+ * PROPÓSITO:
+ * Centraliza la conexión a la base de datos PostgreSQL alojada en Supabase.
+ * También se encarga de crear las tablas automáticamente si no existen
+ * cuando el servidor arranca.
+ * 
+ * LÓGICA PRINCIPAL:
+ * - Se usa el paquete 'pg' para conectarse.
+ * - initDb() ejecuta un "CREATE TABLE IF NOT EXISTS" masivo para asegurar
+ *   que la base de datos siempre tenga la estructura correcta (grupos, 
+ *   estudiantes, configuración y suscripciones push).
+ */
 import pg from 'pg';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -7,6 +21,7 @@ const { Pool } = pg;
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 5000,
 });
 
 export async function initDb() {

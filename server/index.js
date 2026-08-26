@@ -1,3 +1,20 @@
+/**
+ * ARCHIVO: server/index.js
+ * -------------------------------------------------------------
+ * PROPÓSITO:
+ * Este es el "Backend" o Servidor Principal de la aplicación.
+ * Recibe peticiones desde la página web (Frontend) y se encarga de:
+ * 1. Guardar y leer los datos desde la base de datos PostgreSQL.
+ * 2. Suscribir y enviar notificaciones Push al celular.
+ * 3. Ejecutar una tarea programada (cron job) todos los días a las 9 AM
+ *    para revisar quién está atrasado con sus pagos.
+ * 
+ * LÓGICA PRINCIPAL:
+ * - Express.js levanta un servidor HTTP en el puerto 3001.
+ * - POST /api/datos: Recibe el estado completo de la app y sincroniza la DB
+ *   haciendo UPSERTS (Insertar o Actualizar) y borrando lo que ya no existe.
+ * - Cron: Se ejecuta de forma invisible y calcula las fechas de vencimiento.
+ */
 import express from 'express';
 import cors from 'cors';
 import webpush from 'web-push';
@@ -48,7 +65,8 @@ app.get('/api/datos', async (req, res) => {
         pagos: e.pagos,
         notasPagos: e.notas_pagos,
         activo: e.activo,
-        fechaInactivacion: e.fecha_inactivacion
+        fechaInactivacion: e.fecha_inactivacion,
+        telefono: e.telefono
       })),
       umbral: conf.umbral,
       pin: conf.pin,
@@ -99,6 +117,13 @@ app.post('/api/datos', async (req, res) => {
       );
     }
 
+    // Limpiar estudiantes eliminados (que ya no vienen en el payload)
+    const estudianteIds = estudiantes.map(e => e.id);
+    if (estudianteIds.length > 0) {
+      await client.query(`DELETE FROM estudiantes WHERE NOT (id = ANY($1))`, [estudianteIds]);
+    } else {
+      await client.query(`DELETE FROM estudiantes`);
+    }
 
     for (const e of estudiantes) {
       await client.query(
@@ -172,7 +197,7 @@ cron.schedule('0 9 * * *', async () => {
     const estudiantesRes = await pool.query(
       "SELECT nombre, pagos FROM estudiantes WHERE activo = true"
     );
-    const subsRes = await pool.query("SELECT subscription FROM push_subscriptions");
+    const subsRes = await pool.query("SELECT id, subscription FROM push_subscriptions");
 
     if (subsRes.rows.length === 0) {
       console.log('No hay suscripciones registradas, se omite el envío.');
@@ -221,8 +246,17 @@ cron.schedule('0 9 * * *', async () => {
         });
 
         for (const row of subsRes.rows) {
-          await webpush.sendNotification(row.subscription, payload).catch((err) => {
-            console.error('Error enviando notificación:', err);
+          await webpush.sendNotification(row.subscription, payload).catch(async (err) => {
+            if (err.statusCode === 410 || err.statusCode === 404) {
+              console.log(`Suscripción expirada (ID ${row.id}), eliminando...`);
+              try {
+                await pool.query('DELETE FROM push_subscriptions WHERE id = $1', [row.id]);
+              } catch (delErr) {
+                console.error('Error eliminando suscripción de BD:', delErr);
+              }
+            } else {
+              console.error('Error enviando notificación:', err);
+            }
           });
         }
       }

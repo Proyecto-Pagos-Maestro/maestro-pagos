@@ -1,3 +1,15 @@
+/**
+ * ARCHIVO: src/components/app/pago-modal.tsx
+ * -------------------------------------------------------------
+ * PROPÓSITO:
+ * Componente visual que muestra la ventanita emergente para registrar un pago.
+ * 
+ * LÓGICA PRINCIPAL:
+ * - Tiene 2 pasos: Elegir si es completo/parcial, y (si es parcial) agregar detalles.
+ * - WhatsApp Automático: Cuando se confirma el pago, si el alumno tiene un 
+ *   teléfono registrado (y asumiendo que tiene prefijo o es local), abre 
+ *   una pestaña con la API de WhatsApp Web (wa.me) para enviar un recibo al instante.
+ */
 import { useState } from "react";
 import { CheckCircle2, SplitSquareHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
