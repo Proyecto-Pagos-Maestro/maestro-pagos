@@ -172,8 +172,9 @@ export function Estadisticas({ datos, onPago, onHistorial }: Props) {
       </Dialog>
 
       <PagoModal
-        open={estudiantePago !== null}
+        open={!!estudiantePago}
         nombreEstudiante={estudiantePago?.nombre ?? ""}
+        telefono={estudiantePago?.telefono}
         fechaPredefinida={estudiantePago ? (proximoVencimiento(estudiantePago) ?? undefined) : undefined}
         onClose={() => setEstudiantePago(null)}
         onConfirmar={(fecha, nota) => {

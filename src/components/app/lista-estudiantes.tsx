@@ -165,8 +165,9 @@ export function ListaEstudiantes({ datos, onPago, onHistorial }: Props) {
       )}
 
       <PagoModal
-        open={estudiantePago !== null}
+        open={!!estudiantePago}
         nombreEstudiante={estudiantePago?.nombre ?? ""}
+        telefono={estudiantePago?.telefono}
         fechaPredefinida={estudiantePago ? (proximoVencimiento(estudiantePago) ?? undefined) : undefined}
         onClose={() => setEstudiantePago(null)}
         onConfirmar={(fecha, nota) => {

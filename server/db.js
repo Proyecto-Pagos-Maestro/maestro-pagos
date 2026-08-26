@@ -43,6 +43,9 @@ export async function initDb() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
 
+      -- Modificar tabla existente para agregar telefono
+      ALTER TABLE estudiantes ADD COLUMN IF NOT EXISTS telefono VARCHAR(20);
+
       -- Insertar config por defecto si no existe
       INSERT INTO configuracion (id, usuario, pin, umbral, dias_archivo_inactivos)
       VALUES ('default', 'Profesor', NULL, 30, 545)

@@ -47,6 +47,54 @@ function Index() {
   const [entro, setEntro] = useState(false);
   const [historial, setHistorial] = useState<Estudiante | null>(null);
   const [ajustes, setAjustes] = useState(false);
+  const [notificacionesActivas, setNotificacionesActivas] = useState(false);
+
+  const suscribirNotificaciones = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert("Tu navegador no soporta notificaciones Push.");
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert("Permiso denegado para notificaciones.");
+        return;
+      }
+      await navigator.serviceWorker.register('/sw.js');
+      const reg = await navigator.serviceWorker.ready;
+      const res = await fetch(`http://${window.location.hostname}:3001/api/vapid-public-key`);
+      const vapidPublicKey = await res.text();
+      
+      function urlBase64ToUint8Array(base64String: string) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+      }
+
+      const subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+      });
+
+      await fetch(`http://${window.location.hostname}:3001/api/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(subscription),
+      });
+
+      setNotificacionesActivas(true);
+      alert("¡Notificaciones activadas con éxito!");
+    } catch (e) {
+      console.error(e);
+      alert("Hubo un error al activar notificaciones.");
+    }
+  };
+
   const [pagoManual, setPagoManual] = useState(hoyISO());
   const [abrirPagoHistorial, setAbrirPagoHistorial] = useState(false);
   const [modoOscuro, setModoOscuro] = useState(false);
@@ -182,20 +230,20 @@ function Index() {
               datos={datos}
               onHistorial={setHistorial}
               onPago={(id, fecha, nota) => registrarPago(id, fecha, nota)}
-              onGuardar={(id, nombre, grupoId) =>
+              onGuardar={(id, nombre, grupoId, telefono) =>
                 actualizar((d) =>
                   id
                     ? {
                         ...d,
                         estudiantes: d.estudiantes.map((e) =>
-                          e.id === id ? { ...e, nombre, grupoId } : e,
+                          e.id === id ? { ...e, nombre, grupoId, telefono } : e,
                         ),
                       }
                     : {
                         ...d,
                         estudiantes: [
                           ...d.estudiantes,
-                          { id: uid(), nombre, grupoId, pagos: [] },
+                          { id: uid(), nombre, grupoId, pagos: [], telefono },
                         ],
                       },
                 )
@@ -396,6 +444,22 @@ function Index() {
                 className="h-11"
               />
               <p className="text-xs text-muted-foreground">Después de este tiempo, los inactivos se eliminan permanentemente. Default: 545 días (1.5 años).</p>
+            </div>
+          </div>
+          <div className="space-y-2 border-t pt-4 mt-4 px-6">
+            <Label>Notificaciones Push al Celular</Label>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground max-w-[200px]">
+                Recibe un recordatorio automático todos los días cuando tengas alumnos vencidos.
+              </p>
+              <Button 
+                type="button" 
+                variant={notificacionesActivas ? "secondary" : "default"}
+                onClick={suscribirNotificaciones}
+                disabled={notificacionesActivas}
+              >
+                {notificacionesActivas ? "¡Activado!" : "Activar Notificaciones"}
+              </Button>
             </div>
           </div>
           <DialogFooter>

@@ -15,6 +15,7 @@ import { hoyISO } from "@/lib/store";
 type Props = {
   open: boolean;
   nombreEstudiante: string;
+  telefono?: string | undefined;
   fechaPredefinida?: string | undefined;
   onClose: () => void;
   onConfirmar: (fecha: string, nota?: NotaPago) => void;
@@ -22,7 +23,7 @@ type Props = {
 
 type Paso = "tipo" | "parcial";
 
-export function PagoModal({ nombreEstudiante, fechaPredefinida, open, onClose, onConfirmar }: Props) {
+export function PagoModal({ nombreEstudiante, telefono, fechaPredefinida, open, onClose, onConfirmar }: Props) {
   const [paso, setPaso] = useState<Paso>("tipo");
   const [deuda, setDeuda] = useState("");
   const [proximoPago, setProximoPago] = useState("");
@@ -40,8 +41,21 @@ export function PagoModal({ nombreEstudiante, fechaPredefinida, open, onClose, o
     onClose();
   }
 
+  function enviarWhatsApp() {
+    if (!telefono) return;
+    
+    // Si el número tiene exactamente 8 dígitos, asumimos que es de Costa Rica (506)
+    const numLimpio = telefono.replace(/\D/g, ''); // Quita espacios o guiones
+    const telefonoFinal = numLimpio.length === 8 ? `506${numLimpio}` : numLimpio;
+
+    const mensaje = `¡Hola ${nombreEstudiante}! Gracias por el pago.`;
+    const url = `https://wa.me/${telefonoFinal}?text=${encodeURIComponent(mensaje)}`;
+    window.open(url, "_blank");
+  }
+
   function confirmarCompleto() {
     onConfirmar(fechaPago, { parcial: false });
+    enviarWhatsApp();
     reset();
     onClose();
   }
@@ -53,6 +67,7 @@ export function PagoModal({ nombreEstudiante, fechaPredefinida, open, onClose, o
         ...(proximoPago ? { proximoPago } : {}),
       };
     onConfirmar(fechaPago, nota);
+    enviarWhatsApp();
     reset();
     onClose();
   }

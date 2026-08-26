@@ -17,6 +17,7 @@ export type Estudiante = {
   notasPagos?: Record<string, NotaPago>; // key = fecha ISO del pago
   activo?: boolean;             // undefined o true = activo, false = inactivo
   fechaInactivacion?: string;   // fecha ISO en que se archivó
+  telefono?: string | undefined;
 };
 export type Datos = {
   grupos: Grupo[];
@@ -248,7 +249,7 @@ export function useDatos() {
   }, [datos]);
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/datos")
+    fetch(`http://${window.location.hostname}:3001/api/datos`)
       .then((res) => res.json())
       .then((data: Datos) => {
         setDatos({ ...inicial, ...data });
@@ -265,7 +266,7 @@ export function useDatos() {
     const next = fn(datosRef.current);
     datosRef.current = next;
     setDatos(next);
-    fetch("http://localhost:3001/api/datos", {
+    fetch(`http://${window.location.hostname}:3001/api/datos`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(next),

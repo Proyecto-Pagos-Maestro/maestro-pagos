@@ -23,7 +23,7 @@ import { PagoModal } from "@/components/app/pago-modal";
 
 type Props = {
   datos: Datos;
-  onGuardar: (id: string | null, nombre: string, grupoId: string | null) => void;
+  onGuardar: (id: string | null, nombre: string, grupoId: string | null, telefono?: string) => void;
   onEliminar: (id: string) => void;
   onHistorial: (e: Estudiante) => void;
   onPago: (id: string, fecha: string, nota?: NotaPago) => void;
@@ -33,6 +33,7 @@ export function GestionEstudiantes({ datos, onGuardar, onEliminar, onHistorial, 
   const [abierto, setAbierto] = useState(false);
   const [editando, setEditando] = useState<Estudiante | null>(null);
   const [nombre, setNombre] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [grupoId, setGrupoId] = useState("sin");
   const [busqueda, setBusqueda] = useState("");
   const [estudiantePago, setEstudiantePago] = useState<Estudiante | null>(null);
@@ -40,13 +41,14 @@ export function GestionEstudiantes({ datos, onGuardar, onEliminar, onHistorial, 
   function abrir(e: Estudiante | null) {
     setEditando(e);
     setNombre(e?.nombre ?? "");
+    setTelefono(e?.telefono ?? "");
     setGrupoId(e?.grupoId ?? "sin");
     setAbierto(true);
   }
 
   function guardar() {
     if (!nombre.trim()) return;
-    onGuardar(editando?.id ?? null, nombre.trim(), grupoId === "sin" ? null : grupoId);
+    onGuardar(editando?.id ?? null, nombre.trim(), grupoId === "sin" ? null : grupoId, telefono.trim());
     setAbierto(false);
   }
 
@@ -138,8 +140,9 @@ export function GestionEstudiantes({ datos, onGuardar, onEliminar, onHistorial, 
       )}
 
       <PagoModal
-        open={estudiantePago !== null}
+        open={!!estudiantePago}
         nombreEstudiante={estudiantePago?.nombre ?? ""}
+        telefono={estudiantePago?.telefono}
         fechaPredefinida={estudiantePago ? (proximoVencimiento(estudiantePago) ?? undefined) : undefined}
         onClose={() => setEstudiantePago(null)}
         onConfirmar={(fecha, nota) => {
@@ -162,6 +165,16 @@ export function GestionEstudiantes({ datos, onGuardar, onEliminar, onHistorial, 
                 onChange={(ev) => setNombre(ev.target.value)}
                 className="h-11"
                 placeholder="Ej. María Fernández"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="tel-est">Teléfono de WhatsApp (Opcional)</Label>
+              <Input
+                id="tel-est"
+                value={telefono}
+                onChange={(ev) => setTelefono(ev.target.value)}
+                className="h-11"
+                placeholder="Ej. 50688888888"
               />
             </div>
             <div className="space-y-2">

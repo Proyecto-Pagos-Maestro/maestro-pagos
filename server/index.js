@@ -73,10 +73,10 @@ app.post('/api/datos', async (req, res) => {
     diasArchivoInactivos = 545
   } = req.body || {};
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
-    
+
     // Config
     await client.query(
       `UPDATE configuracion SET usuario = $1, pin = $2, umbral = $3, dias_archivo_inactivos = $4 WHERE id = 'default'`,
@@ -99,19 +99,20 @@ app.post('/api/datos', async (req, res) => {
       );
     }
 
-    // Actualizar estudiantes
+
     for (const e of estudiantes) {
       await client.query(
-        `INSERT INTO estudiantes (id, nombre, grupo_id, pagos, notas_pagos, activo, fecha_inactivacion)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO estudiantes (id, nombre, grupo_id, pagos, notas_pagos, activo, fecha_inactivacion, telefono)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          ON CONFLICT (id) DO UPDATE SET 
            nombre = EXCLUDED.nombre,
            grupo_id = EXCLUDED.grupo_id,
            pagos = EXCLUDED.pagos,
            notas_pagos = EXCLUDED.notas_pagos,
            activo = EXCLUDED.activo,
-           fecha_inactivacion = EXCLUDED.fecha_inactivacion`,
-        [e.id, e.nombre, e.grupoId || null, JSON.stringify(e.pagos || []), JSON.stringify(e.notasPagos || {}), e.activo !== false, e.fechaInactivacion || null]
+           fecha_inactivacion = EXCLUDED.fecha_inactivacion,
+           telefono = EXCLUDED.telefono`,
+        [e.id, e.nombre, e.grupoId || null, JSON.stringify(e.pagos || []), JSON.stringify(e.notasPagos || {}), e.activo !== false, e.fechaInactivacion || null, e.telefono || null]
       );
     }
 
@@ -147,7 +148,7 @@ app.post('/api/test-notification', async (req, res) => {
   try {
     const subs = await pool.query('SELECT subscription FROM push_subscriptions');
     const payload = JSON.stringify({ title: '¡Prueba Exitosa!', body: 'Las notificaciones Push están funcionando.' });
-    
+
     for (const row of subs.rows) {
       await webpush.sendNotification(row.subscription, payload).catch(err => console.error(err));
     }
@@ -157,12 +158,16 @@ app.post('/api/test-notification', async (req, res) => {
   }
 });
 
+app.get('/api/vapid-public-key', (req, res) => {
+  res.send(publicVapidKey);
+});
+
 // -----------------------------------------------------
 // CRON JOB - RECORDATORIOS DE PAGO DIARIOS
 // -----------------------------------------------------
 
 cron.schedule('0 9 * * *', async () => {
-  console.log('⏰ Ejecutando revisión de pagos vencidos...');
+  console.log(' Ejecutando revisión de pagos vencidos...');
   try {
     const estudiantesRes = await pool.query(
       "SELECT nombre, pagos FROM estudiantes WHERE activo = true"
@@ -181,16 +186,38 @@ cron.schedule('0 9 * * *', async () => {
       const pagos = est.pagos || [];
       if (pagos.length === 0) continue;
 
+      // Calcular el día de ciclo (el más frecuente)
+      const frecuencias = {};
+      let maxFreq = 0;
+      let diaCiclo = 1;
+
+      for (const p of pagos) {
+        const d = parseInt(p.split("-")[2], 10);
+        frecuencias[d] = (frecuencias[d] || 0) + 1;
+        if (frecuencias[d] > maxFreq) {
+          maxFreq = frecuencias[d];
+          diaCiclo = d;
+        }
+      }
+
+      // Último pago
       const ultimoPago = [...pagos].sort().at(-1);
-      const fechaUltimo = new Date(ultimoPago);
-      fechaUltimo.setHours(0, 0, 0, 0);
+      const pUlt = ultimoPago.split("-").map(Number);
+      let anio = pUlt[0];
+      let mes = pUlt[1]; // Siguiente mes
 
-      const diasSinPagar = Math.round((hoy - fechaUltimo) / 86400000);
+      // Fecha de vencimiento
+      const ultimoDiaDelMes = new Date(anio, mes + 1, 0).getDate();
+      const diaReal = Math.min(diaCiclo, ultimoDiaDelMes);
+      const vencimiento = new Date(anio, mes, diaReal);
+      vencimiento.setHours(0, 0, 0, 0);
 
-      if ([0, 1, 2].includes(diasSinPagar)) {
+      const diasDesdeVencimiento = Math.round((hoy - vencimiento) / 86400000);
+
+      if ([0, 1, 2].includes(diasDesdeVencimiento)) {
         const payload = JSON.stringify({
           title: 'Recordatorio de pago',
-          body: `${est.nombre} lleva ${diasSinPagar} día(s) sin pagar.`,
+          body: `${est.nombre} tiene ${diasDesdeVencimiento === 0 ? 'que pagar HOY' : `su pago vencido por ${diasDesdeVencimiento} día(s)`}.`,
         });
 
         for (const row of subsRes.rows) {
@@ -214,6 +241,6 @@ const PORT = process.env.PORT || 3001;
 
 initDb().then(() => {
   app.listen(PORT, () => {
-    console.log(`🚀 Servidor backend corriendo en http://localhost:${PORT}`);
+    console.log(` Servidor backend corriendo en http://localhost:${PORT}`);
   });
 }).catch(console.error);
